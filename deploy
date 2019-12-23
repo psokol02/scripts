@@ -1,0 +1,94 @@
+#!/bin/bash
+CONTAINER_NAME=ods4
+BPMS=BPMS4
+
+
+RED='\033[0;31m'
+
+for line in `curl -s http://localhost:28080/kie-server-6.4.0.Final-ee7/services/rest/server/queries/processes/instances | grep process-instance-id`
+do
+ID=`echo $line | cut -d'>' -f 2 | cut -d'<' -f 1`
+	echo Znaleziono proces $ID
+	curl -s -X DELETE http://localhost:28080/kie-server-6.4.0.Final-ee7/services/rest/server/containers/${CONTAINER_NAME}/processes/instances/${ID}
+done
+echo "Zatrzymanie kontenera"
+curl -s -X POST http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/controller/management/servers/wildfly-kieserver/containers/$CONTAINER_NAME/status/stopped
+echo "Undeploy"
+curl -v -X POST http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/deployment/pl.orange.bpms:Odstapienia:3.014/undeploy
+echo "Usuwanie artifact"
+rm -rf /home/bpms/.m2/repository/pl/orange/bpms/Odstapienia/3.014/
+echo "Oczekiwanie na undeploy"
+#for i in {1..20}
+#do
+#	curl -v -X GET http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/deployment/pl.orange.bpms:Odstapienia:3.014
+#done
+echo "Koniec oczekiwania"
+COMPILE_JOB=`curl -s -X POST http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/repositories/$BPMS/projects/Odstapienia/maven/compile`
+echo "Wynik wywołania kompilacji $COMPILE_JOB"
+JOB_ID=`echo ${COMPILE_JOB} | cut -d"\"" -f 4`
+echo "JobId kompilacji: $JOB_ID"
+OLD_STATUS='NONE'
+for i in {1..400}
+do
+	STATUS_JSON=`curl -s -X GET http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/jobs/$JOB_ID`
+	STATUS=`echo ${STATUS_JSON} | cut -d"\"" -f 4`
+	if [ ${OLD_STATUS} != ${STATUS} ]
+	then 
+		echo -n "Status kompilacji: ${STATUS}"
+	else
+		echo -n "."
+	fi
+	if [ ${STATUS} == 'SUCCESS' ]; then
+		break
+	fi
+	if [ ${STATUS} == 'FAIL' ]; then
+		echo -e "${RED}Błąd kompilacji :-("
+		echo $STATUS_JSON
+		exit 1
+	fi
+	OLD_STATUS=$STATUS
+	sleep 1
+done
+
+COMPILE_JOB=`curl -s -X POST http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/repositories/$BPMS/projects/Odstapienia/maven/install`
+echo "Wynik wywołania instalacji $COMPILE_JOB"
+JOB_ID=`echo ${COMPILE_JOB} | cut -d"\"" -f 4`
+echo "JobId instalacji: $JOB_ID"
+OLD_STATUS='NONE'
+
+for i in {1..400}
+do
+	STATUS_JSON=`curl -s -X GET http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/jobs/$JOB_ID`
+	STATUS=`echo ${STATUS_JSON} | cut -d"\"" -f 4`
+	if [ ${OLD_STATUS} != ${STATUS} ]
+	then 
+		echo -n "Status instalacji: ${STATUS}"
+	else
+		echo -n "."
+	fi
+
+	if [ ${STATUS} == 'SUCCESS' ]; then
+		break
+	fi
+	OLD_STATUS=$STATUS
+	sleep 1
+done
+
+COMPILE_JOB=`curl -s -X POST http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/repositories/$BPMS/projects/Odstapienia/maven/deploy`
+echo "Wynik wywołania deploy $COMPILE_JOB"
+JOB_ID=`echo ${COMPILE_JOB} | cut -d"\"" -f 4`
+echo "JobId deploy: $JOB_ID"
+for i in {1..400}
+do
+	STATUS_JSON=`curl -v -X GET http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/jobs/$JOB_ID`
+	echo $STATUS_JSON
+	STATUS=`echo ${STATUS_JSON} | cut -d"\"" -f 4`
+	echo "Status deploy: ${STATUS}"
+	if [ ${STATUS} == 'SUCCESS' ]; then
+		break
+	fi
+	sleep 1
+done
+
+
+

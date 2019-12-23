@@ -1,0 +1,1 @@
+curl -v -X GET http://localhost:28080/kie-server-6.4.0.Final-ee7/services/rest/server/extension/service/properties/reloadProperties
