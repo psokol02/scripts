@@ -1,6 +1,6 @@
 #!/bin/bash
-CONTAINER_NAME=ods4
-BPMS=BPMS4
+CONTAINER_NAME=ods7
+BPMS=BPMS
 
 
 RED='\033[0;31m'
@@ -91,4 +91,6 @@ do
 done
 
 
+echo "Start kontenera"
+curl -s -X POST http://localhost:28080/kie-wb-distribution-wars-6.4.0.Final-wildfly8/rest/controller/management/servers/wildfly-kieserver/containers/$CONTAINER_NAME/status/started
 

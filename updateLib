@@ -1,0 +1,12 @@
+#!/bin/bash
+cd ~/devbpms
+git pull
+#mvn install -DskipTests 
+cp -r /home/bpms/devbpms/target/lib/deployments/* /opt/wildfly-8.1.0.Final/standalone/deployments/
+cp -r /home/bpms/devbpms/target/lib/kie-server/* /opt/wildfly-8.1.0.Final/standalone/deployments/kie-server-6.4.0.Final-ee7.war/WEB-INF/lib/
+cp -r /home/bpms/devbpms/target/lib/kie-wb/* /opt/wildfly-8.1.0.Final/standalone/deployments/kie-wb-distribution-wars-6.4.0.Final-wildfly8.war/WEB-INF/lib/
+rm -r /opt/wildfly-8.1.0.Final/standalone/deployments/*.deployed
+rm -r /opt/wildfly-8.1.0.Final/standalone/deployments/*.failed
+
+> /opt/wildfly-8.1.0.Final/standalone/deployments/kie-wb-distribution-wars-6.4.0.Final-wildfly8.war.dodeploy
+> /opt/wildfly-8.1.0.Final/standalone/deployments/kie-server-6.4.0.Final-ee7.war.dodeploy
